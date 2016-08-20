@@ -1,0 +1,218 @@
+#!/bin/bash
+
+VERSION="0.5"
+TITULO="GRUB2 Installer GUI $VERSION  -  By geminis_demon"
+LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
+TMP="/tmp/Grub2InstallerGUI"
+THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
+
+[ ! -f "$THEME" ] && unset THEME
+
+if [ ! -d "/mnt/live/memory/changes" ]; then
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --text-align "center" \
+	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
+	    
+	exit
+fi
+
+rm -rf "$TMP" && mkdir -p "$TMP"
+
+(yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc "$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --no-buttons \
+    --progress --pulsate \
+    --text-align "center" \
+    --text "\n\n\n    Buscando instalaciones de Wifislax64...  \n" \
+& echo $! >"$TMP/pid")
+
+os-prober 2>/dev/null|grep ":Wifislax64" >"$TMP/os-prober"
+
+if [ -z "$(cat "$TMP/os-prober")" ]; then
+	
+	kill $(cat "$TMP/pid")
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "Abrir instalador de Wifislax64:0" \
+	    --button "gtk-close:1" \
+	    --text-align "center" \
+	    --text "\n\n\n    Primero debes instalar Wifislax64  \n"
+	
+	case $? in
+		
+		0) WifislaxInstallerGUI; $0;;
+		*) exit;;
+	esac
+	
+fi
+
+umount -a 2>/dev/null
+
+cat "$TMP/os-prober"|cut -d'(' -f1|sed 's/:/ /'|\
+while read DEV SO SO_VER; do
+	
+	MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
+	[ ! -d "$MNT" ] && mkdir -p "$MNT"
+	mount -t ext4 "$DEV" "$MNT"
+	GB="$(df -H "$DEV"|awk '{print $2}'|tail -1|sed 's/G$//')"
+	echo "$DEV | ${GB}GB | $SO $SO_VER"
+	unset DEV MNT GB SO
+	
+done|tr '\n' '!' >"$TMP/menu_particiones"
+
+kill $(cat "$TMP/pid")
+
+if [ $(cat "$TMP/os-prober"|wc -l) -eq 1 ]; then
+	
+	DEV="$(cat "$TMP/os-prober"|cut -d':' -f1)"
+else
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --button "gtk-cancel:1" \
+	    --text "\n\n    Selecciona una partición:  \n" \
+	    --text-align "center" \
+	    --form  --field="":CB "$(cat "$TMP/menu_particiones")" \
+	>"$TMP/return"
+	
+	DEV="$(cat "$TMP/return"|cut -d' ' -f1)"
+	[ -z "$DEV" ] && exit
+fi
+
+yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc "$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --button "gtk-ok:0" \
+    --button "gtk-cancel:1" \
+    --text-align "center" \
+    --text "\nSelecciona donde se instalará el cargador de arranque:    " \
+    --list --no-headers \
+    --column "" "MBR" "Se instalará en ${DEV//[0-9]} 	(Recomendado)" \
+    --column "" "ROOT" "Se instalará en $DEV	(Experto)" \
+>"$TMP/return"
+
+[ ! "$(cat "$TMP/return")" ] && exit
+DEVICE="$(cat "$TMP/return"|awk '{print $4}')"
+
+(yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc "$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --no-buttons \
+    --progress --pulsate \
+    --text-align "center" \
+    --text "\n\n\n    Instalando cargador de arranque GRUB2...  \n\n" \
+& echo $! >"$TMP/pid")
+
+MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
+mount|grep "^/dev/"|egrep -v "^$DEV|^/dev/sr[0-9]"|cut -d' ' -f1|xargs -i umount {}
+mount --bind /dev "$MNT"/dev
+mount --bind /dev/pts  "$MNT"/dev/pts
+mount --bind /proc "$MNT"/proc
+mount --bind /sys  "$MNT"/sys
+[ -f "$MNT/boot/grub/i386-pc/core.img" ] && chattr -i "$MNT/boot/grub/i386-pc/core.img"
+echo "chroot "$MNT" grub-install --target=i386-pc --boot-directory=/boot --recheck --force "$DEVICE""
+chroot "$MNT" grub-install --target=i386-pc --boot-directory=/boot --recheck --force "$DEVICE"
+
+if [ $? -ne 0 ]; then
+	
+	kill $(cat "$TMP/pid")
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --text-align "center" \
+	    --text "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
+	
+	umount "$MNT"/sys
+	umount "$MNT"/proc
+	umount "$MNT"/dev/pts
+	umount "$MNT"/dev
+	umount "$MNT"
+	exit
+fi
+
+[ "$(cat /proc/cmdline|grep "nomodeset")" ] && sed -i 's/="vga=788"/="vga=788 nomodeset"/' "$MNT/etc/default/grub"
+chroot "$MNT" update-grub
+
+if [ $? -ne 0 ]; then
+	
+	kill $(cat "$TMP/pid")
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --text-align "center" \
+	    --text "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
+	
+	umount "$MNT"/sys
+	umount "$MNT"/proc
+	umount "$MNT"/dev/pts
+	umount "$MNT"/dev
+	umount "$MNT"
+	exit
+fi
+
+umount "$MNT"/sys
+umount "$MNT"/proc
+umount "$MNT"/dev/pts
+umount "$MNT"/dev
+umount "$MNT"
+kill $(cat "$TMP/pid")
+
+yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc "$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --button "gtk-ok:0" \
+    --text-align "center" \
+    --text "\n\n    La instalación ha finalizado, ahora ya puedes 
+    reiniciar el sistema y arrancar  Wifislax64 
+    desde el disco duro.   \n 
+    Saludos desde www.seguridadwireless.net \n"
+
+exit

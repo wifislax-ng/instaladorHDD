@@ -1,0 +1,246 @@
+#!/bin/bash
+
+VERSION="1.1"
+TITULO="Wifislax64 Installer GUI $VERSION  -  By geminis_demon"
+LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
+TMP="/tmp/WifislaxInstallerGUI"
+THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
+LIVEOS="/etc/wifislax-version"
+LIVECD="/mnt/livemedia"
+MODULES="$(cat /mnt/live/tmp/wifislax64-livedbg|sed 's/\<media\>/livemedia/g')"
+
+if [ ! -d "$LIVECD" ]; then
+	
+	LIVECD="$(echo "$LIVECD"|sed 's#^#/mnt/live#')"
+	MODULES="$(echo "$MODULES"|sed 's#^#/mnt/live#')"
+fi
+
+[ ! -f "$THEME" ] && unset THEME
+
+if [ ! -d "/mnt/live/memory/changes" ]; then
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc="$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --text-align "center" \
+	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
+	    
+	exit
+fi
+
+rm -rf "$TMP" && mkdir -p "$TMP"
+
+(yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc="$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --no-buttons \
+    --progress --pulsate \
+    --text-align "center" \
+    --text "\n\n\n    Identificando particiones...  \n" \
+& echo $! >"$TMP/pid")
+
+lsblk -p -o KNAME,SIZE,FSTYPE -a|grep "ext[0-9]$" >"$TMP/particiones"
+
+if [ -z "$(cat "$TMP/particiones")" ]; then
+	
+	kill $(cat "$TMP/pid")
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc="$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "Abrir Gparted:0" \
+	    --button "gtk-close:1" \
+	    --text-align "center" \
+	    --text "\n\n\n    Primero debes crear una partición con formato ext4  \n"
+	
+	case $? in
+		
+		0) gparted; $0; exit;;
+		*) exit;;
+	esac
+	
+fi
+
+cat /proc/mounts|awk '{print $2}'|grep "^$MOUNTPOINT"|grep -v /mnt/live|sort -r|xargs umount &>/dev/null
+os-prober >"$TMP/os-prober" 2>/dev/null
+
+cat "$TMP/particiones"|while read DEV SIZE FS; do
+	
+	SO="$(grep "^$DEV" "$TMP/os-prober"|cut -d':' -f2|cut -d'(' -f1)"
+	[ -z "$SO" ] && SO="Ningún SO encontrado"
+	echo "$DEV | $SIZE | $SO"
+	
+done|tr '\n' '!' >"$TMP/menu_particiones"
+
+kill $(cat "$TMP/pid")
+
+yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc="$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --button "gtk-ok:0" \
+    --button "gtk-cancel:1" \
+    --text-align "center" \
+    --text "\n\n    Selecciona una partición:  \n" \
+    --form  --field="":CB "$(cat "$TMP/menu_particiones")" \
+>"$TMP/return"
+
+DEV="$(cat "$TMP/return"|cut -d' ' -f1)"
+[ -z "$DEV" ] && exit
+MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
+[ ! -d "$MNT" ] && mkdir -p "$MNT"
+mount -t ext4 "$DEV" "$MNT"
+
+if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
+	
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc="$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --button "gtk-no:1" \
+	    --button "gtk-cancel:2" \
+	    --text-align "center" \
+	    --text "\n\n\n    La partición $DEV no está vacía, \n  ¿Desea formatear la partición? (RECOMENDADO)  \n"
+	
+	case $? in
+		
+		0) (yad --on-top --center \
+			--width 500 \
+			--height 190 \
+			--gtkrc="$THEME" \
+			--title "$TITULO" \
+			--window-icon "$LOGO" \
+			--image "$LOGO"  \
+			--no-buttons \
+			--progress --pulsate \
+			--text-align "center" \
+			--text "\n\n\n    Formateando la partición $DEV...  \n" \
+			& echo $! >"$TMP/pid")
+			
+			umount "$DEV"
+			
+			yes | mkfs.ext4 -t ext4 "$DEV"
+			
+			if [ $? -ne 0 ]; then
+				
+				kill $(cat "$TMP/pid")
+				
+				yad --on-top --center \
+				    --width 500 \
+				    --height 190 \
+				    --gtkrc="$THEME" \
+				    --title "$TITULO" \
+				    --window-icon "$LOGO" \
+				    --image "$LOGO"  \
+				    --button "gtk-ok:0" \
+				    --text-align "center" \
+				    --text "\n\n\n    Ocurrió un error al formatear la partición, no se puede continuar  \n"
+				exit
+			fi
+		;;
+		
+		1) echo;;
+		*) exit;;
+	esac
+fi
+
+kill $(cat "$TMP/pid") 2>/dev/null
+
+if [ ! "$(mount|grep "^$DEV")" ]; then
+	
+	mount -t ext4 "$DEV" "$MNT"
+	
+	if [ $? -ne 0 ]; then
+		
+		yad --on-top --center \
+		    --width 500 \
+		    --height 190 \
+		    --gtkrc="$THEME" \
+		    --title "$TITULO" \
+		    --window-icon "$LOGO" \
+		    --image "$LOGO"  \
+		    --button "gtk-ok:0" \
+		    --text-align "center" \
+		    --text "\n\n\n    Ocurrió un error al montar la partición, no se puede continuar  \n"
+		exit
+	fi
+fi
+
+N1="$(echo "$MODULES"|wc -l)"
+N2=0
+PROGRESS=0
+echo 0 >"$TMP/progress_bar"
+
+(for X in $MODULES; do
+	
+	N2=$(($N2+1))
+	PORCENT=$(($(($N2*100))/$N1))
+	echo $PORCENT >"$TMP/progress_bar"
+	echo $PORCENT
+	[ $PORCENT -lt 100 ] && echo "#Progreso: ${PORCENT}%"||echo "#Realizando tareas finales..."
+	(echo
+	echo "Instalando $X"
+	unsquashfs -n -f -dest "${MNT}" "$X"
+	) 1>&2
+done|\
+yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc="$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --no-buttons \
+    --progress \
+    --text-align "center" \
+    --text "\n\n\n    Instalando Wifislax64 $(cat $LIVEOS|cut -d' ' -f2) en $DEV  \n" \
+& echo $! >"$TMP/pid")
+
+while true; do sleep 1; [ $(cat "$TMP/progress_bar") -ge 100 ] && break; done
+
+sed -i "1i $DEV        /                ext4        defaults         1   1" "$MNT/etc/fstab"
+cp -rf "$LIVECD/boot/vmlinuz" "$MNT/boot/vmlinuz-$(uname -r)"
+cp -rf /etc/adjtime "$MNT/etc/"
+cp -rf /etc/timezone "$MNT/etc/"
+cp -rf /etc/hardwareclock "$MNT/etc/"
+cp -rf /etc/localtime "$MNT/etc/"
+cp -rf /etc/localtime-copied-from "$MNT/etc/"
+cp -rf /etc/rc.d/rc.keymap "$MNT/etc/rc.d/"
+cp -rf /etc/profile.d/lang.sh "$MNT/etc/profile.d/"
+cp -rf /etc/X11/xorg.conf.d/30-keyboard.conf "$MNT/etc/X11/xorg.conf.d/"
+tune2fs -L "$(cat $LIVEOS|tr ' ' '-')" "$DEV"
+kill $(cat "$TMP/pid")
+
+yad --on-top --center \
+    --width 500 \
+    --height 190 \
+    --gtkrc="$THEME" \
+    --title "$TITULO" \
+    --window-icon "$LOGO" \
+    --image "$LOGO"  \
+    --button "gtk-ok:0" \
+    --text-align "center" \
+    --text "\n\n\n    La instalación de Wifislax64 ha completado,  \n    se procederá a instalar el GRUB  \n"
+
+Grub2InstallerGUI
+exit
