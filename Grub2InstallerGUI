@@ -142,8 +142,8 @@ mount --bind /dev/pts  "$MNT"/dev/pts
 mount --bind /proc "$MNT"/proc
 mount --bind /sys  "$MNT"/sys
 [ -f "$MNT/boot/grub/i386-pc/core.img" ] && chattr -i "$MNT/boot/grub/i386-pc/core.img"
-echo "chroot "$MNT" grub-install --target=i386-pc --boot-directory=/boot --recheck --force "$DEVICE""
-chroot "$MNT" grub-install --target=i386-pc --boot-directory=/boot --recheck --force "$DEVICE"
+echo "chroot "$MNT" grub-install --recheck --force "$DEVICE""
+chroot "$MNT" grub-install --recheck --force "$DEVICE"
 
 if [ $? -ne 0 ]; then
 	
