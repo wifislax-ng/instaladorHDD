@@ -6,6 +6,14 @@ LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
 TMP="/tmp/Grub2InstallerGUI"
 THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 
+if [ -d /sys/firmware/efi ]; then
+  MODO=UEFI
+  EFI=0
+else
+  EFI=1
+  MODO=BIOS
+fi
+
 [ ! -f "$THEME" ] && unset THEME
 
 if [ ! -d "/mnt/live/memory/changes" ]; then
@@ -103,24 +111,34 @@ else
 	[ -z "$DEV" ] && exit
 fi
 
-yad --on-top --center \
-    --width 500 \
-    --height 190 \
-    --gtkrc "$THEME" \
-    --title "$TITULO" \
-    --window-icon "$LOGO" \
-    --image "$LOGO"  \
-    --button "gtk-ok:0" \
-    --button "gtk-cancel:1" \
-    --text-align "center" \
-    --text "\nSelecciona donde se instalará el cargador de arranque:    " \
-    --list --no-headers \
-    --column "" "MBR" "Se instalará en ${DEV//[0-9]} 	(Recomendado)" \
-    --column "" "ROOT" "Se instalará en $DEV	(Experto)" \
->"$TMP/return"
-
-[ ! "$(cat "$TMP/return")" ] && exit
-DEVICE="$(cat "$TMP/return"|awk '{print $4}')"
+if [ $EFI -eq 0 ]; then
+	DEVICE=${DEV//[0-9]}
+	echo modo UEFI
+	echo $DEVICE
+	UUID=$(blkid $DEV -o value -s UUID)
+	EFI_PART=$(fdisk -l | grep -E "${DEVICE}[0-9]+" | grep "EFI" | cut -d" " -f 1)
+	ROOT_PART=${DEV: -1}
+	
+	[ -z $EFI_PART ] && echo "No hay particiones UEFI" && exit
+else
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --button "gtk-cancel:1" \
+	    --text-align "center" \
+	    --text "\nSelecciona donde se instalará el cargador de arranque:    " \
+	    --list --no-headers \
+	    --column "" "MBR" "Se instalará en ${DEV//[0-9]} 	(Recomendado)" \
+	    --column "" "ROOT" "Se instalará en $DEV	(Experto)" \
+	>"$TMP/return"
+	[ ! "$(cat "$TMP/return")" ] && exit
+	DEVICE="$(cat "$TMP/return"|awk '{print $4}')"
+fi
 
 (yad --on-top --center \
     --width 500 \
@@ -199,6 +217,29 @@ umount "$MNT"/proc
 umount "$MNT"/dev/pts
 umount "$MNT"/dev
 umount "$MNT"
+
+if [ $EFI -eq 0 ]; then
+	EFI_MOUNT=$(mktemp -d)
+	mount $EFI_PART $EFI_MOUNT
+	mkdir $EFI_MOUNT/EFI/Wifislax64 -p
+echo "search.fs_uuid $UUID root hd0,gpt$ROOT_PART
+set prefix='(\$root)/boot/grub/'
+configfile \$prefix/grub.cfg" > $EFI_MOUNT/EFI/Wifislax64/grub.cfg
+
+	grub-mkimage --format=x86_64-efi --output=$EFI_MOUNT/EFI/Wifislax64/bootx64.efi --config=$EFI_MOUNT/EFI/Wifislax64/grub.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr ahci configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
+
+	EFI_ENTRY=$(efibootmgr -v | grep -i "wifislax" | wc -l)
+
+	if [ $EFI_ENTRY -ne 0 ]; then
+		efibootmgr -B -b $(efibootmgr -v | grep -i "wifislax" | cut -d" " -f1 | tr -d \* | tr -d "Boot")
+	fi
+	
+	efibootmgr -c -L "Wifislax64" -l "\EFI\Wifislax64\bootx64.efi"
+
+	umount $EFI_MOUNT
+	rmdir $EFI_MOUNT
+fi
+
 kill $(cat "$TMP/pid")
 
 yad --on-top --center \
@@ -210,7 +251,7 @@ yad --on-top --center \
     --image "$LOGO"  \
     --button "gtk-ok:0" \
     --text-align "center" \
-    --text "\n\n    La instalación ha finalizado, ahora ya puedes 
+    --text "\n\n    La instalación en modo $MODO ha finalizado, ahora ya puedes 
     reiniciar el sistema y arrancar  Wifislax64 
     desde el disco duro.   \n 
     Saludos desde www.seguridadwireless.net \n"
