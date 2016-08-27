@@ -150,7 +150,7 @@ if [ $EFI -eq 0 ]; then
 	done
 	
 	if [ "$(cat $EFI_TMP)" = "" ]; then # No EFI partitions
-		print_error "No se han detectado particiones EFI"
+		print_error "\n\n\nNo se han detectado particiones EFI. Cree una partición FAT32 de +100MB con los flags \"boot\" y \"esp\""
   		rm -f $EFI_TMP
  		exit 1
 	fi

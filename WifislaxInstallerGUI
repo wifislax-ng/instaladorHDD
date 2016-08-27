@@ -50,7 +50,34 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 
 lsblk -p -o KNAME,SIZE,FSTYPE -a|grep "ext[0-9]$" >"$TMP/particiones"
 
+if [ -d /sys/firmware/efi ]; then
+	EFI_TMP=$(mktemp)
+	
+	# Scan for EFI partitions:
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp ; do
+	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
+		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
+		  echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
+		done
+	  fi
+	done
+	
+	if [ "$(cat $EFI_TMP)" = "" ]; then # No EFI partitions
+		EFI_MESSAGE="-Una partición EFI (FAT32 de +100MB con flags \"boot\" y \"esp\")"
+		EFI_ERROR=0
+	fi
+	
+	#No lo usaremos mas
+	rm -f $EFI_TMP
+fi
+
 if [ -z "$(cat "$TMP/particiones")" ]; then
+	EXT_MESSAGE="-Una partición con formato ext4 para el sistema \n"
+	EXT_ERROR=0
+fi
+
+
+if [ $EXT_ERROR ] || [ $EFI_ERROR ]; then
 	
 	kill $(cat "$TMP/pid")
 	
@@ -64,7 +91,7 @@ if [ -z "$(cat "$TMP/particiones")" ]; then
 	    --button "Abrir Gparted:0" \
 	    --button "gtk-close:1" \
 	    --text-align "center" \
-	    --text "\n\n\n    Primero debes crear una partición con formato ext4  \n"
+	    --text "\n\n\n    Primero debes crear:\n\n $EXT_MESSAGE $EFI_MESSAGE \n"
 	
 	case $? in
 		
