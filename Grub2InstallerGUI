@@ -223,11 +223,13 @@ if [ $EFI -eq 0 ]; then
 	mount $EFI_PART $EFI_MOUNT
 	mkdir $EFI_MOUNT/EFI/Wifislax64 -p
 echo "search.fs_uuid $UUID root hd0,gpt$ROOT_PART
-set prefix='(\$root)/boot/grub/'
+set prefix=(\$root)/boot/grub/
 configfile \$prefix/grub.cfg" > $EFI_MOUNT/EFI/Wifislax64/grub.cfg
-
+	
 	grub-mkimage --format=x86_64-efi --output=$EFI_MOUNT/EFI/Wifislax64/bootx64.efi --config=$EFI_MOUNT/EFI/Wifislax64/grub.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr ahci configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
-
+	
+	[ $? -ne 0 ] && echo "No se ha podido crear el cargador UEFI correctamente" && exit
+	
 	EFI_ENTRY=$(efibootmgr -v | grep -i "wifislax" | wc -l)
 
 	if [ $EFI_ENTRY -ne 0 ]; then
@@ -235,8 +237,8 @@ configfile \$prefix/grub.cfg" > $EFI_MOUNT/EFI/Wifislax64/grub.cfg
 	fi
 	
 	efibootmgr -c -L "Wifislax64" -l "\EFI\Wifislax64\bootx64.efi"
-
-	umount $EFI_MOUNT
+	
+	umount -l $EFI_MOUNT
 	rmdir $EFI_MOUNT
 fi
 
