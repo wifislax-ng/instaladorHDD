@@ -1,10 +1,29 @@
 #!/bin/bash
 
+
 VERSION="0.5"
 TITULO="GRUB2 Installer GUI $VERSION  -  By geminis_demon"
 LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
 TMP="/tmp/Grub2InstallerGUI"
 THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
+
+### Error print ###
+
+function print_error() {
+	yad --on-top --center \
+	    --width 500 \
+	    --height 190 \
+	    --gtkrc "$THEME" \
+	    --title "$TITULO" \
+	    --window-icon "$LOGO" \
+	    --image "$LOGO"  \
+	    --button "gtk-ok:0" \
+	    --text-align "center" \
+	    --text "$1"
+}
+
+
+### Error print ###
 
 if [ -d /sys/firmware/efi ]; then
   MODO=UEFI
@@ -116,10 +135,33 @@ if [ $EFI -eq 0 ]; then
 	echo modo UEFI
 	echo $DEVICE
 	UUID=$(blkid $DEV -o value -s UUID)
-	EFI_PART=$(fdisk -l | grep -E "${DEVICE}[0-9]+" | grep "EFI" | cut -d" " -f 1)
+	#EFI_PART=$(fdisk -l | grep -E "${DEVICE}[0-9]+" | grep "EFI" | cut -d" " -f 1)
 	ROOT_PART=${DEV: -1}
 	
-	[ -z $EFI_PART ] && echo "No hay particiones UEFI" && exit
+	EFI_TMP=$(mktemp)
+	
+	# Scan for EFI partitions:
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp ; do
+	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
+		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
+		  echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
+		done
+	  fi
+	done
+	
+	if [ "$(cat $EFI_TMP)" = "" ]; then # No EFI partitions
+		print_error "No se han detectado particiones EFI"
+  		rm -f $EFI_TMP
+ 		exit 1
+	fi
+
+	# Initially, we will just take the first EFI partition found, which
+	# will probably be on /dev/sda:
+	EFI_PART="$(cat $EFI_TMP | head -n 1)"
+	
+	# This file is no longer needed:
+	rm -f $EFI_TMP
+
 else
 	yad --on-top --center \
 	    --width 500 \
@@ -167,16 +209,7 @@ if [ $? -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
 	
-	yad --on-top --center \
-	    --width 500 \
-	    --height 190 \
-	    --gtkrc "$THEME" \
-	    --title "$TITULO" \
-	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
-	    --button "gtk-ok:0" \
-	    --text-align "center" \
-	    --text "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
+	print_error "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
 	
 	umount "$MNT"/sys
 	umount "$MNT"/proc
@@ -193,16 +226,7 @@ if [ $? -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
 	
-	yad --on-top --center \
-	    --width 500 \
-	    --height 190 \
-	    --gtkrc "$THEME" \
-	    --title "$TITULO" \
-	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
-	    --button "gtk-ok:0" \
-	    --text-align "center" \
-	    --text "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
+	print_error "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
 	
 	umount "$MNT"/sys
 	umount "$MNT"/proc
