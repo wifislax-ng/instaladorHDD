@@ -288,7 +288,7 @@ if [ $EFI -eq 0 ]; then
 		
 		#WIFISLAX ENTRY
 		echo "title   Wifislax64" > $EFI_MOUNT/loader/entries/wifislax.conf
-		echo "linux   \EFI\$EFI_NAME\vmlinuz-$(uname -r)" >> $EFI_MOUNT/loader/entries/wifislax.conf
+		echo "linux   \EFI\\$EFI_NAME\vmlinuz-$(uname -r)" >> $EFI_MOUNT/loader/entries/wifislax.conf
 		echo "options root=$DEV ro" >> $EFI_MOUNT/loader/entries/wifislax.conf
 		
 		#Copy Kernel to EFI
