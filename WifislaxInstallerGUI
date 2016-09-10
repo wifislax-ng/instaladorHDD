@@ -9,6 +9,15 @@ LIVEOS="/etc/wifislax-version"
 LIVECD="/mnt/livemedia"
 MODULES="$(cat /mnt/live/tmp/wifislax64-livedbg|sed 's/\<media\>/livemedia/g')"
 
+if [ -d /sys/firmware/efi ]; then
+  MODO=UEFI
+  EFI=0
+else
+  EFI=1
+  MODO=BIOS
+fi
+
+
 if [ ! -d "$LIVECD" ]; then
 	
 	LIVECD="$(echo "$LIVECD"|sed 's#^#/mnt/live#')"
@@ -50,7 +59,7 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 
 lsblk -p -o KNAME,SIZE,FSTYPE -a|grep "ext[0-9]$" >"$TMP/particiones"
 
-if [ -d /sys/firmware/efi ]; then
+if [ $EFI -eq 0 ]; then
 	EFI_TMP=$(mktemp)
 	
 	# Scan for EFI partitions:
@@ -66,6 +75,10 @@ if [ -d /sys/firmware/efi ]; then
 		EFI_MESSAGE="-Una partición EFI (FAT32 de +100MB con flags \"boot\" y \"esp\")"
 		EFI_ERROR=0
 	fi
+	
+	# Initially, we will just take the first EFI partition found, which
+	# will probably be on /dev/sda:
+	EFI_PART="$(cat $EFI_TMP | head -n 1)"
 	
 	#No lo usaremos mas
 	rm -f $EFI_TMP
@@ -246,6 +259,32 @@ yad --on-top --center \
 while true; do sleep 1; [ $(cat "$TMP/progress_bar") -ge 100 ] && break; done
 
 sed -i "1i $DEV        /                ext4        defaults         1   1" "$MNT/etc/fstab"
+
+SWAP_TMP=$(mktemp)
+
+# Scan for SWAP partitions:
+for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp ; do
+	gdisk -l /dev/$drive 2> /dev/null | grep -w 8200 | while read swapsp ; do
+	  echo /dev/$drive$(expr $(echo "$swapsp" | cut -b 1-4)) >> $SWAP_TMP
+	done
+done
+
+if [ ! "$(cat $SWAP_TMP)" = "" ]; then # Found swap partition
+
+	SWAP_PART="$(cat $SWAP_TMP | head -n 1)"
+	echo -e "UUID=$(blkid $SWAP_PART -o value -s UUID)\tnone\tswap\tsw\t0\t0" >> $MNT/etc/fstab
+fi
+
+rm -f $SWAP_TMP
+
+
+if [ $EFI -eq 0 ]; then
+
+	mkdir -p $MNT/boot/efi
+	echo -e "UUID=$(blkid $EFI_PART -o value -s UUID)\t/boot/efi\tvfat\tumask=0077\t0\t1" >> $MNT/etc/fstab
+
+fi
+
 cp -rf "$LIVECD/boot/vmlinuz" "$MNT/boot/vmlinuz-$(uname -r)"
 cp -rf /etc/adjtime "$MNT/etc/"
 cp -rf /etc/timezone "$MNT/etc/"
