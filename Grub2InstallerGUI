@@ -141,10 +141,14 @@ if [ $EFI -eq 0 ]; then
 	EFI_TMP=$(mktemp)
 	
 	# Scan for EFI partitions:
-	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp ; do
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp mmcblk0; do
 	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
 		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
-		  echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
+		  	if echo $drive | grep -q "mmc"; then
+		  		echo /dev/${drive}p$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
+			else
+				echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
+			fi
 		done
 	  fi
 	done
