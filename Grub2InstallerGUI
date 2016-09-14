@@ -131,7 +131,12 @@ else
 fi
 
 if [ $EFI -eq 0 ]; then
-	DEVICE=${DEV//[0-9]}
+	if echo $DEV | grep -q '/dev/mmc'; then #Tablets fix
+		DEVICE=$(echo $DEV |grep -E 'mmcblk[0-9]+' -o)
+	else	
+		DEVICE=${DEV//[0-9]}
+	fi
+	
 	echo modo UEFI
 	echo $DEVICE
 	UUID=$(blkid $DEV -o value -s UUID)
