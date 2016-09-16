@@ -9,7 +9,7 @@ THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 
 ### Error print ###
 
-function print_error() {
+function print_error_and_exit() {
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
@@ -19,7 +19,8 @@ function print_error() {
 	    --image "$LOGO"  \
 	    --button "gtk-ok:0" \
 	    --text-align "center" \
-	    --text "$1"
+	    --text "\n\n\n  $1"
+	exit 1
 }
 
 
@@ -159,9 +160,8 @@ if [ $EFI -eq 0 ]; then
 	done
 	
 	if [ "$(cat $EFI_TMP)" = "" ]; then # No EFI partitions
-		print_error "\n\n\nNo se han detectado particiones EFI. Cree una partición FAT32 de +100MB con los flags \"boot\" y \"esp\""
-  		rm -f $EFI_TMP
- 		exit 1
+		rm -f $EFI_TMP
+		print_error_and_exit "No se han detectado particiones EFI. Cree una partición FAT32 de +100MB con los flags \"boot\" y \"esp\""
 	fi
 
 	# Initially, we will just take the first EFI partition found, which
@@ -218,14 +218,14 @@ if [ $? -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
 	
-	print_error "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
-	
 	umount "$MNT"/sys
 	umount "$MNT"/proc
 	umount "$MNT"/dev/pts
 	umount "$MNT"/dev
 	umount "$MNT"
-	exit
+
+	print_error_and_exit "Ocurrió un error durante la instalación (grub-install), no se puede continuar  \n"
+
 fi
 
 [ "$(cat /proc/cmdline|grep "nomodeset")" ] && sed -i 's/="vga=788"/="vga=788 nomodeset"/' "$MNT/etc/default/grub"
@@ -235,14 +235,12 @@ if [ $? -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
 	
-	print_error "\n\n\n    Ocurrió un error durante la instalación, no se puede continuar  \n"
-	
 	umount "$MNT"/sys
 	umount "$MNT"/proc
 	umount "$MNT"/dev/pts
 	umount "$MNT"/dev
 	umount "$MNT"
-	exit
+	print_error_and_exit "Ocurrió un error durante la instalación (update-grub), no se puede continuar  \n"
 fi
 
 umount "$MNT"/sys
@@ -287,7 +285,7 @@ if [ $EFI -eq 0 ]; then
 		
 		grub-mkimage --format=x86_64-efi --output=$EFI_MOUNT/EFI/$EFI_NAME/bootx64.efi --config=$EFI_MOUNT/EFI/$EFI_NAME/grub.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr ahci configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
 		
-		[ $? -ne 0 ] && print_error "No se ha podido crear el cargador UEFI correctamente" && exit
+		[ $? -ne 0 ] && print_error_and_exit "No se ha podido crear el cargador UEFI correctamente"
 		
 	else
 		#Guummibot Config
@@ -6283,7 +6281,7 @@ I6qbslYI7J2aiZpokOsSPi/uAAAAAAAA" > $EFI_MOUNT/EFI/$EFI_NAME/bootx64.efi
 		
 		grub-mkimage --format=x86_64-efi --output=$EFI_MOUNT/EFI/$EFI_NAME/loader.efi --config=$EFI_MOUNT/EFI/$EFI_NAME/grub-embedded.cfg --compression=xz --prefix=/EFI/BOOT part_gpt part_msdos fat ext2 hfs hfsplus iso9660 udf ufs1 ufs2 zfs chain linux boot appleldr ahci configfile normal regexp minicmd reboot halt search search_fs_file search_fs_uuid search_label gfxterm gfxmenu efi_gop efi_uga all_video loadbios gzio echo true probe loadenv bitmap_scale font cat help ls png jpeg tga test at_keyboard usb_keyboard
 		
-		[ $? -ne 0 ] && print_error "No se ha podido crear el cargador UEFI correctamente" && exit
+		[ $? -ne 0 ] && print_error_and_exit "No se ha podido crear el cargador UEFI correctamente"
 		
 		
 	fi
