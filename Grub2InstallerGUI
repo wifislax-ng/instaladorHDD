@@ -275,7 +275,6 @@ if [ $EFI -eq 0 ]; then
 	echo "set prefix=(\$root)/boot/grub/" >> $EFI_MOUNT/EFI/$EFI_NAME/grub.cfg
 	echo "configfile \$prefix/grub.cfg" >> $EFI_MOUNT/EFI/$EFI_NAME/grub.cfg
 	
-
 	#Shim.efi and MokManager.efi signed by Microsoft
 	EXIT=0
 	cp /usr/lib/grub/x86_64-efi-signed/shimx64.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/bootx64.efi; let EXIT=$EXIT+$?
@@ -283,9 +282,29 @@ if [ $EFI -eq 0 ]; then
 
 	#Grub signed by Wifislax
 	cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/grubx64.efi; let EXIT=$EXIT+$?
+	
+	#Install Wifislax key
+	mokutil --test-key /usr/lib/grub/x86_64-signed/wifislax.cer
+	
+	if [ $? -eq 0 ]; then #Wifislax key is not installed
+		yad --on-top --center \
+			--width 500 \
+			--height 190 \
+			--gtkrc "$THEME" \
+			--title "$TITULO" \
+			--window-icon "$LOGO" \
+			--image "$LOGO"  \
+			--button "gtk-ok:0" \
+			--text-align "center" \
+			--text "\n\n    Se va a instalar el certificado de Wifislax 
+			para poder arrancar con SecureBoot. La contraseña para importar es: wifislax\n"
+		EFI_HASH=$(mktemp -d)
+		mokutil --generate-hash=wifislax >$EFI_HASH/wifislax.pass
+		mokutil --import /usr/lib/grub/x86_64-signed/wifislax.cer --hash-file $EFI_HASH/wifislax.pass
+		rm -Rf $EFI_HASH
+	fi
 
 	[ $EXIT -ne 0 ] && print_error_and_exit "El instalador no encuentra los cargadores UEFI firmados"
-	
 
 	EFI_ENTRY=$(efibootmgr -v | grep -i "$EFI_NAME" | wc -l)
 
