@@ -276,7 +276,7 @@ done
 if [ ! "$(cat $SWAP_TMP)" = "" ]; then # Found swap partition
 
 	SWAP_PART="$(cat $SWAP_TMP | head -n 1)"
-	echo -e "UUID=$(blkid $SWAP_PART -o value -s UUID)\tnone\tswap\tsw\t0\t0" >> $MNT/etc/fstab
+	echo -e "\nUUID=$(blkid $SWAP_PART -o value -s UUID)\tnone\tswap\tsw\t0\t0" >> $MNT/etc/fstab
 fi
 
 rm -f $SWAP_TMP
