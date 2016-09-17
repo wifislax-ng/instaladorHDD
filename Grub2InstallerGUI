@@ -215,9 +215,9 @@ mount --bind /sys  "$MNT"/sys
 if [ $EFI -eq 0 ]; then
 	EFI_MOUNT=$(mktemp -d)
 	mount $EFI_PART $EFI_MOUNT
-
+	
 	echo "chroot "$MNT" grub-install --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE""
-	chroot "$MNT" grub-install --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE"
+	grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE"
 	salida=$?
 
 	umount -l $EFI_MOUNT
@@ -284,9 +284,10 @@ if [ $EFI -eq 0 ]; then
 	cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/grubx64.efi; let EXIT=$EXIT+$?
 	
 	#Install Wifislax key
-	mokutil --test-key /usr/lib/grub/x86_64-signed/wifislax.cer
+	mokutil --test-key /usr/lib/grub/x86_64-efi-signed/wifislax.cer
 	
 	if [ $? -eq 0 ]; then #Wifislax key is not installed
+		SHIM_PASS=wifislax
 		yad --on-top --center \
 			--width 500 \
 			--height 190 \
@@ -296,15 +297,14 @@ if [ $EFI -eq 0 ]; then
 			--image "$LOGO"  \
 			--button "gtk-ok:0" \
 			--text-align "center" \
-			--text "\n\n    Se va a instalar el certificado de Wifislax 
-			para poder arrancar con SecureBoot. La contraseña para importar es: wifislax\n"
+			--text "\n\n    Se va a instalar el certificado de Wifislax para poder arrancar con SecureBoot. \n\nLa contraseña para importar es: \n\n\n<b><span color='red' size='x-large'>$SHIM_PASS</span></b>\n"
 		EFI_HASH=$(mktemp -d)
-		mokutil --generate-hash=wifislax >$EFI_HASH/wifislax.pass
+		mokutil --generate-hash=$SHIM_PASS >$EFI_HASH/wifislax.pass
 		mokutil --import /usr/lib/grub/x86_64-signed/wifislax.cer --hash-file $EFI_HASH/wifislax.pass
 		rm -Rf $EFI_HASH
 	fi
 
-	[ $EXIT -ne 0 ] && print_error_and_exit "El instalador no encuentra los cargadores UEFI firmados"
+	[ $EXIT -ne 0 ] && kill $(cat "$TMP/pid") && print_error_and_exit "El instalador no encuentra los cargadores UEFI firmados"
 
 	EFI_ENTRY=$(efibootmgr -v | grep -i "$EFI_NAME" | wc -l)
 
