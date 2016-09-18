@@ -285,7 +285,7 @@ rm -f $SWAP_TMP
 if [ $EFI -eq 0 ]; then
 
 	mkdir -p $MNT/boot/efi
-	echo -e "UUID=$(blkid $EFI_PART -o value -s UUID)\t/boot/efi\tvfat\tumask=0077\t0\t1" >> $MNT/etc/fstab
+	echo -e "\nUUID=$(blkid $EFI_PART -o value -s UUID)   /boot/efi        vfat        umask=0077       0   1" >> $MNT/etc/fstab
 
 fi
 
