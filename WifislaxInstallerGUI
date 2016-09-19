@@ -290,7 +290,6 @@ if [ $EFI -eq 0 ]; then
 fi
 
 cp -rf "$LIVECD/boot/vmlinuz" "$MNT/boot/vmlinuz-$(uname -r)"
-cp -rf /etc/adjtime "$MNT/etc/"
 cp -rf /etc/timezone "$MNT/etc/"
 cp -rf /etc/hardwareclock "$MNT/etc/"
 cp -rf /etc/localtime "$MNT/etc/"
@@ -298,6 +297,11 @@ cp -rf /etc/localtime-copied-from "$MNT/etc/"
 cp -rf /etc/rc.d/rc.keymap "$MNT/etc/rc.d/"
 cp -rf /etc/profile.d/lang.sh "$MNT/etc/profile.d/"
 cp -rf /etc/X11/xorg.conf.d/30-keyboard.conf "$MNT/etc/X11/xorg.conf.d/"
+
+if [ -f /etc/adjtime ]; then
+cp -rf /etc/adjtime "$MNT/etc/"
+fi
+
 tune2fs -L "$(cat $LIVEOS|tr ' ' '-')" "$DEV"
 kill $(cat "$TMP/pid")
 
