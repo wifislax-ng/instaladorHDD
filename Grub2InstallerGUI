@@ -205,11 +205,7 @@ fi
 & echo $! >"$TMP/pid")
 
 MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
-mount|grep "^/dev/"|egrep -v "^$DEV|^/dev/sr[0-9]"|cut -d' ' -f1|xargs -i umount {}
-mount --bind /dev "$MNT"/dev
-mount --bind /dev/pts  "$MNT"/dev/pts
-mount --bind /proc "$MNT"/proc
-mount --bind /sys  "$MNT"/sys
+
 [ -f "$MNT/boot/grub/i386-pc/core.img" ] && chattr -i "$MNT/boot/grub/i386-pc/core.img"
 
 if [ $EFI -eq 0 ]; then
@@ -232,13 +228,6 @@ fi
 if [ $salida -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
-	
-	umount "$MNT"/sys
-	umount "$MNT"/proc
-	umount "$MNT"/dev/pts
-	umount "$MNT"/dev
-	umount "$MNT"
-
 	print_error_and_exit "Ocurrió un error durante la instalación (grub-install), no se puede continuar  \n"
 
 fi
@@ -249,20 +238,9 @@ chroot "$MNT" update-grub
 if [ $? -ne 0 ]; then
 	
 	kill $(cat "$TMP/pid")
-	
-	umount "$MNT"/sys
-	umount "$MNT"/proc
-	umount "$MNT"/dev/pts
-	umount "$MNT"/dev
-	umount "$MNT"
 	print_error_and_exit "Ocurrió un error durante la instalación (update-grub), no se puede continuar  \n"
+	
 fi
-
-umount "$MNT"/sys
-umount "$MNT"/proc
-umount "$MNT"/dev/pts
-umount "$MNT"/dev
-umount "$MNT"
 
 if [ $EFI -eq 0 ]; then
 
