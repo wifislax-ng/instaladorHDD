@@ -216,7 +216,7 @@ if [ $EFI -eq 0 ]; then
 	EFI_MOUNT=$(mktemp -d)
 	mount $EFI_PART $EFI_MOUNT
 	
-	echo "chroot "$MNT" grub-install --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE""
+	echo "grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force \"$DEVICE\""
 	grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE"
 	salida=$?
 
