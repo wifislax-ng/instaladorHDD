@@ -3,7 +3,10 @@
 
 VERSION="0.6"
 TITULO="GRUB2 Installer GUI $VERSION  -  By geminis_demon"
-LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
+LOGO="/usr/share/pixmaps/Grub2InstallerGUI/logo.png"
+LOGO_ERROR="/usr/share/pixmaps/Grub2InstallerGUI/error.png"
+LOGO_STOP="/usr/share/pixmaps/Grub2InstallerGUI/stop.png"
+LOGO_OK="/usr/share/pixmaps/Grub2InstallerGUI/ok.png"
 TMP="/tmp/Grub2InstallerGUI"
 THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 
@@ -16,7 +19,7 @@ function print_error_and_exit() {
 	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
+	    --image "$LOGO_ERROR"  \
 	    --button "gtk-ok:0" \
 	    --text-align "center" \
 	    --text "\n\n\n  $1"
@@ -44,7 +47,7 @@ if [ ! -d "/mnt/live/memory/changes" ]; then
 	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
+	    --image "$LOGO_STOP"  \
 	    --button "gtk-ok:0" \
 	    --text-align "center" \
 	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
@@ -79,7 +82,7 @@ if [ -z "$(cat "$TMP/os-prober")" ]; then
 	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
+	    --image "$LOGO_STOP"  \
 	    --button "Abrir instalador de Wifislax64:0" \
 	    --button "gtk-close:1" \
 	    --text-align "center" \
@@ -216,7 +219,7 @@ if [ $EFI -eq 0 ]; then
 	EFI_MOUNT=$(mktemp -d)
 	mount $EFI_PART $EFI_MOUNT
 	
-	echo "grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force \"$DEVICE\""
+	echo "chroot "$MNT" grub-install --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE""
 	grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE"
 	salida=$?
 
@@ -326,7 +329,7 @@ yad --on-top --center \
     --gtkrc "$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
-    --image "$LOGO"  \
+    --image "$LOGO_OK"  \
     --button "gtk-ok:0" \
     --text-align "center" \
     --text "\n\n    La instalación en modo $MODO ha finalizado, ahora ya puedes 

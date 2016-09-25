@@ -1,8 +1,11 @@
 #!/bin/bash
 
-VERSION="1.1"
+VERSION="1.2"
 TITULO="Wifislax64 Installer GUI $VERSION  -  By geminis_demon"
-LOGO="/usr/share/pixmaps/notify-send/wifislax_logo.png"
+LOGO="/usr/share/pixmaps/WifislaxInstallerGUI/logo.png"
+LOGO_ERROR="/usr/share/pixmaps/WifislaxInstallerGUI/error.png"
+LOGO_STOP="/usr/share/pixmaps/WifislaxInstallerGUI/stop.png"
+LOGO_NEXT="/usr/share/pixmaps/WifislaxInstallerGUI/next.png"
 TMP="/tmp/WifislaxInstallerGUI"
 THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 LIVEOS="/etc/wifislax-version"
@@ -34,7 +37,7 @@ if [ ! -d "/mnt/live/memory/changes" ]; then
 	    --gtkrc="$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
+	    --image "$LOGO_STOP"  \
 	    --button "gtk-ok:0" \
 	    --text-align "center" \
 	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
@@ -89,7 +92,7 @@ if [ $EFI -eq 0 ]; then
 fi
 
 if [ -z "$(cat "$TMP/particiones")" ]; then
-	EXT_MESSAGE="-Una partición con formato ext4 para el sistema \n"
+	EXT_MESSAGE="-Una partición con formato ext4 para el sistema (10Gb minimo)\n"
 	EXT_ERROR=0
 fi
 
@@ -104,7 +107,7 @@ if [ $EXT_ERROR ] || [ $EFI_ERROR ]; then
 	    --gtkrc="$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
-	    --image "$LOGO"  \
+	    --image "$LOGO_STOP"  \
 	    --button "Abrir Gparted:0" \
 	    --button "gtk-close:1" \
 	    --text-align "center" \
@@ -151,6 +154,22 @@ MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
 [ ! -d "$MNT" ] && mkdir -p "$MNT"
 mount -t ext4 "$DEV" "$MNT"
 
+SPACE="$(cat "$TMP/particiones"|rev|cut -d ' ' -f2|rev|cut -d , -f-1|sed 's/G//g'|tr -d " \t\n\r")"
+
+if [ $SPACE -lt 10 ]; then
+		yad --on-top --center \
+		    --width 500 \
+		    --height 190 \
+		    --gtkrc="$THEME" \
+		    --title "$TITULO" \
+		    --window-icon "$LOGO" \
+		    --image "$LOGO_STOP"  \
+		    --button "gtk-ok:0" \
+		    --text-align "center" \
+		    --text "\n\n\n    La particion ext4 debe ser al menos de 10Gb  \n"
+		exit
+fi
+
 if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 	
 	yad --on-top --center \
@@ -195,7 +214,7 @@ if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 				    --gtkrc="$THEME" \
 				    --title "$TITULO" \
 				    --window-icon "$LOGO" \
-				    --image "$LOGO"  \
+				    --image "$LOGO_ERROR"  \
 				    --button "gtk-ok:0" \
 				    --text-align "center" \
 				    --text "\n\n\n    Ocurrió un error al formatear la partición, no se puede continuar  \n"
@@ -222,7 +241,7 @@ if [ ! "$(mount|grep "^$DEV")" ]; then
 		    --gtkrc="$THEME" \
 		    --title "$TITULO" \
 		    --window-icon "$LOGO" \
-		    --image "$LOGO"  \
+		    --image "$LOGO_ERROR"  \
 		    --button "gtk-ok:0" \
 		    --text-align "center" \
 		    --text "\n\n\n    Ocurrió un error al montar la partición, no se puede continuar  \n"
@@ -311,7 +330,7 @@ yad --on-top --center \
     --gtkrc="$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
-    --image "$LOGO"  \
+    --image "$LOGO_NEXT"  \
     --button "gtk-ok:0" \
     --text-align "center" \
     --text "\n\n\n    La instalación de Wifislax64 ha completado,  \n    se procederá a instalar el GRUB  \n"
