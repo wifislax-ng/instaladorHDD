@@ -282,6 +282,7 @@ yad --on-top --center \
 while true; do sleep 1; [ $(cat "$TMP/progress_bar") -ge 100 ] && break; done
 
 # Fstab nuevo
+rm -rf "$MNT/etc/fstab" 2> /dev/null
 echo "$DEV        /                ext4        defaults         1   1
 proc             /proc            proc        defaults         0   0
 tmpfs            /dev/shm         tmpfs       defaults         0   0" > "$MNT/etc/fstab"
