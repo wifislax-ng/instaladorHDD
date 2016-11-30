@@ -170,6 +170,7 @@ if [ $EFI -eq 0 ]; then
 	# Initially, we will just take the first EFI partition found, which
 	# will probably be on /dev/sda:
 	EFI_PART="$(cat $EFI_TMP | head -n 1)"
+	echo "EFI_PART=$EFI_PART"
 	
 	# This file is no longer needed:
 	rm -f $EFI_TMP
@@ -219,7 +220,7 @@ if [ $EFI -eq 0 ]; then
 	EFI_MOUNT=$(mktemp -d)
 	mount $EFI_PART $EFI_MOUNT
 	
-	echo "chroot "$MNT" grub-install --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE""
+	echo "grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE""
 	grub-install --root-directory=$MNT --recheck --efi-directory=$EFI_MOUNT --force "$DEVICE"
 	salida=$?
 
@@ -315,7 +316,7 @@ if [ $EFI -eq 0 ]; then
 		efibootmgr -B -b $(efibootmgr -v | grep -i "$EFI_NAME" | cut -d" " -f1 | tr -d \* | tr -d "Boot")
 	fi
 	
-	efibootmgr -c -L "$EFI_NAME" -l "\EFI\\$EFI_NAME\bootx64.efi"
+	efibootmgr -c -L "$EFI_NAME" -l "\EFI\\$EFI_NAME\bootx64.efi" -d $DEVICE -p ${EFI_PART: -1}
 	
 	umount -l $EFI_MOUNT
 	rmdir $EFI_MOUNT
