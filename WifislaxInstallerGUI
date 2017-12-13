@@ -66,7 +66,8 @@ if [ $EFI -eq 0 ]; then
 	EFI_TMP=$(mktemp)
 	
 	# Scan for EFI partitions:
-	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp mmcblk0; do
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm 
+sdn sdo sdp mmcblk0 nvme0n1; do
 	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
 		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
 		  	if echo $drive | grep -q "mmc"; then
@@ -290,7 +291,8 @@ tmpfs            /dev/shm         tmpfs       defaults         0   0" > "$MNT/et
 SWAP_TMP=$(mktemp)
 
 # Scan for SWAP partitions:
-for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp ; do
+for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo 
+sdp nvme0n1; do
 	gdisk -l /dev/$drive 2> /dev/null | grep -w 8200 | while read swapsp ; do
 	  echo /dev/$drive$(expr $(echo "$swapsp" | cut -b 1-4)) >> $SWAP_TMP
 	done
