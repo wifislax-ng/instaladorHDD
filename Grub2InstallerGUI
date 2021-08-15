@@ -1,14 +1,13 @@
 #!/bin/bash
 
 
-VERSION="0.6"
+VERSION="1.0"
 TITULO="GRUB2 Installer GUI $VERSION  -  By geminis_demon"
 LOGO="/usr/share/pixmaps/Grub2InstallerGUI/logo.png"
 LOGO_ERROR="/usr/share/pixmaps/Grub2InstallerGUI/error.png"
 LOGO_STOP="/usr/share/pixmaps/Grub2InstallerGUI/stop.png"
 LOGO_OK="/usr/share/pixmaps/Grub2InstallerGUI/ok.png"
 TMP="/tmp/Grub2InstallerGUI"
-THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 
 ### Error print ###
 
@@ -16,11 +15,10 @@ function print_error_and_exit() {
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO_ERROR"  \
-	    --button "gtk-ok:0" \
+	    --button "OK:0" \
 	    --text-align "center" \
 	    --text "\n\n\n  $1"
 	exit 1
@@ -37,18 +35,15 @@ else
   MODO=BIOS
 fi
 
-[ ! -f "$THEME" ] && unset THEME
-
 if [ ! -d "/mnt/live/memory/changes" ]; then
 	
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO_STOP"  \
-	    --button "gtk-ok:0" \
+	    --button "OK:0" \
 	    --text-align "center" \
 	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
 	    
@@ -60,7 +55,6 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 (yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc "$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO"  \
@@ -79,12 +73,11 @@ if [ -z "$(cat "$TMP/os-prober")" ]; then
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO_STOP"  \
 	    --button "Abrir instalador de Wifislax64:0" \
-	    --button "gtk-close:1" \
+	    --button "Cerrar:1" \
 	    --text-align "center" \
 	    --text "\n\n\n    Primero debes instalar Wifislax64  \n"
 	
@@ -98,7 +91,7 @@ fi
 
 umount -a 2>/dev/null
 
-cat "$TMP/os-prober"|cut -d'(' -f1|sed 's/:/ /'|\
+cat "$TMP/os-prober"|cut -d: -f-2|sed 's/:/ /'|\
 while read DEV SO SO_VER; do
 	
 	MNT="$(echo "$DEV"|sed 's/dev/mnt/')"
@@ -119,12 +112,11 @@ else
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO"  \
-	    --button "gtk-ok:0" \
-	    --button "gtk-cancel:1" \
+	    --button "OK:0" \
+	    --button "Cancelar:1" \
 	    --text "\n\n    Selecciona una partición:  \n" \
 	    --text-align "center" \
 	    --form  --field="":CB "$(cat "$TMP/menu_particiones")" \
@@ -137,6 +129,8 @@ fi
 if [ $EFI -eq 0 ]; then
 	if echo $DEV | grep -q '/dev/mmc'; then #Tablets fix
 		DEVICE=$(echo $DEV |grep -E 'mmcblk[0-9]+' -o)
+    elif echo $DEV | grep -q '/dev/nvme' ; then 
+        DEVICE=$(echo $DEV |cut -b 1-12)
 	else	
 		DEVICE=${DEV//[0-9]}
 	fi
@@ -150,11 +144,10 @@ if [ $EFI -eq 0 ]; then
 	EFI_TMP=$(mktemp)
 	
 	# Scan for EFI partitions:
-	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm 
-sdn sdo sdp mmcblk0 nvme0n1; do
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp mmcblk0 nvme0n1; do
 	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
 		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
-		  	if echo $drive | grep -q "mmc"; then
+		  	if echo $drive | grep -q -E "mmc|nvme" ; then
 		  		echo /dev/${drive}p$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
 			else
 				echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
@@ -180,12 +173,11 @@ else
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc "$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO"  \
-	    --button "gtk-ok:0" \
-	    --button "gtk-cancel:1" \
+	    --button "OK:0" \
+	    --button "Cancelar:1" \
 	    --text-align "center" \
 	    --text "\nSelecciona donde se instalará el cargador de arranque:    " \
 	    --list --no-headers \
@@ -199,7 +191,6 @@ fi
 (yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc "$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO"  \
@@ -269,70 +260,15 @@ umount "$MNT"/dev/pts
 umount "$MNT"/dev
 umount "$MNT"
 
-if [ $EFI -eq 0 ]; then
-
-	EFI_NAME="Wifislax64"
-	EFI_MOUNT=$(mktemp -d)
-	mount $EFI_PART $EFI_MOUNT
-	mkdir $EFI_MOUNT/EFI/$EFI_NAME -p
-	
-	echo "search.fs_uuid $UUID root hd0,gpt$ROOT_PART"> $EFI_MOUNT/EFI/$EFI_NAME/grub.cfg
-	echo "set prefix=(\$root)/boot/grub/" >> $EFI_MOUNT/EFI/$EFI_NAME/grub.cfg
-	echo "configfile \$prefix/grub.cfg" >> $EFI_MOUNT/EFI/$EFI_NAME/grub.cfg
-	
-	#Shim.efi and MokManager.efi signed by Microsoft
-	EXIT=0
-	cp /usr/lib64/grub/x86_64-efi-signed/shimx64.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/bootx64.efi; let EXIT=$EXIT+$?
-	cp /usr/lib64/grub/x86_64-efi-signed/MokManager.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/MokManager.efi; let EXIT=$EXIT+$?
-
-	#Grub signed by Wifislax
-	cp /usr/lib64/grub/x86_64-efi-signed/grubx64.efi.signed $EFI_MOUNT/EFI/$EFI_NAME/grubx64.efi; let EXIT=$EXIT+$?
-	
-	#Install Wifislax key
-	mokutil --test-key /usr/lib64/grub/x86_64-efi-signed/wifislax.cer
-	
-	if [ $? -eq 0 ]; then #Wifislax key is not installed
-		SHIM_PASS=wifislax
-		yad --on-top --center \
-			--width 500 \
-			--height 190 \
-			--gtkrc "$THEME" \
-			--title "$TITULO" \
-			--window-icon "$LOGO" \
-			--image "$LOGO"  \
-			--button "gtk-ok:0" \
-			--text-align "center" \
-			--text "\n\n    Se va a instalar el certificado de Wifislax para poder arrancar con SecureBoot. \n\nLa contraseña para importar es: \n\n\n<b><span color='red' size='x-large'>$SHIM_PASS</span></b>\n"
-		EFI_HASH=$(mktemp -d)
-		mokutil --generate-hash=$SHIM_PASS >$EFI_HASH/wifislax.pass
-		mokutil --import /usr/lib64/grub/x86_64-signed/wifislax.cer --hash-file $EFI_HASH/wifislax.pass
-		rm -Rf $EFI_HASH
-	fi
-
-	[ $EXIT -ne 0 ] && kill $(cat "$TMP/pid") && print_error_and_exit "El instalador no encuentra los cargadores UEFI firmados"
-
-	EFI_ENTRY=$(efibootmgr -v | grep -i "$EFI_NAME" | wc -l)
-
-	if [ $EFI_ENTRY -ne 0 ]; then
-		efibootmgr -B -b $(efibootmgr -v | grep -i "$EFI_NAME" | cut -d" " -f1 | tr -d \* | tr -d "Boot")
-	fi
-	
-	efibootmgr -c -L "$EFI_NAME" -l "\EFI\\$EFI_NAME\bootx64.efi" -d $DEVICE -p ${EFI_PART: -1}
-	
-	umount -l $EFI_MOUNT
-	rmdir $EFI_MOUNT
-fi
-
 kill $(cat "$TMP/pid")
 
 yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc "$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO_OK"  \
-    --button "gtk-ok:0" \
+    --button "OK:0" \
     --text-align "center" \
     --text "\n\n    La instalación en modo $MODO ha finalizado, ahora ya puedes 
     reiniciar el sistema y arrancar  Wifislax64 

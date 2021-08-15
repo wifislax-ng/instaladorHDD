@@ -1,16 +1,16 @@
 #!/bin/bash
 
-VERSION="1.2"
+VERSION="1.6"
 TITULO="Wifislax64 Installer GUI $VERSION  -  By geminis_demon"
 LOGO="/usr/share/pixmaps/WifislaxInstallerGUI/logo.png"
 LOGO_ERROR="/usr/share/pixmaps/WifislaxInstallerGUI/error.png"
 LOGO_STOP="/usr/share/pixmaps/WifislaxInstallerGUI/stop.png"
 LOGO_NEXT="/usr/share/pixmaps/WifislaxInstallerGUI/next.png"
 TMP="/tmp/WifislaxInstallerGUI"
-THEME="/usr/share/themes/oxygen-gtk/gtk-2.0/gtkrc"
 LIVEOS="/etc/wifislax-version"
-LIVECD="/mnt/livemedia"
-MODULES="$(cat /mnt/live/tmp/wifislax64-livedbg|sed 's/\<media\>/livemedia/g')"
+LOG=/mnt/live/tmp/wifislax64-livedbg
+LIVECD="$(cat $LOG|grep -m1 ".xzm"|rev|cut -d/ -f5-|rev|sed 's/\<media\>/livemedia/g')"
+MODULES="$(cat $LOG|sed 's/\<media\>/livemedia/g')"
 
 if [ -d /sys/firmware/efi ]; then
   MODO=UEFI
@@ -27,18 +27,15 @@ if [ ! -d "$LIVECD" ]; then
 	MODULES="$(echo "$MODULES"|sed 's#^#/mnt/live#')"
 fi
 
-[ ! -f "$THEME" ] && unset THEME
-
 if [ ! -d "/mnt/live/memory/changes" ]; then
 	
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc="$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO_STOP"  \
-	    --button "gtk-ok:0" \
+	    --button "OK:0" \
 	    --text-align "center" \
 	    --text "\n\n\n    Para utilizar este instalador debes iniciar Wifislax64 en modo live  \n"
 	    
@@ -50,7 +47,6 @@ rm -rf "$TMP" && mkdir -p "$TMP"
 (yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc="$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO"  \
@@ -66,11 +62,10 @@ if [ $EFI -eq 0 ]; then
 	EFI_TMP=$(mktemp)
 	
 	# Scan for EFI partitions:
-	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm 
-sdn sdo sdp mmcblk0 nvme0n1; do
+	for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp mmcblk0 nvme0n1; do
 	  if LANG=C fdisk -l /dev/$drive 2> /dev/null | grep -q "Disklabel type: gpt" ; then
 		gdisk -l /dev/$drive 2> /dev/null | grep -w EF00 | while read efisp ; do
-		  	if echo $drive | grep -q "mmc"; then
+		  	if echo $drive | grep -q -E "mmc|nvme" ; then
 		  		echo /dev/${drive}p$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
 			else
 				echo /dev/$drive$(expr $(echo "$efisp" | cut -b 1-4)) >> $EFI_TMP
@@ -105,12 +100,11 @@ if [ $EXT_ERROR ] || [ $EFI_ERROR ]; then
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc="$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO_STOP"  \
 	    --button "Abrir Gparted:0" \
-	    --button "gtk-close:1" \
+	    --button "Cerrar:1" \
 	    --text-align "center" \
 	    --text "\n\n\n    Primero debes crear:\n\n $EXT_MESSAGE $EFI_MESSAGE \n"
 	
@@ -122,12 +116,12 @@ if [ $EXT_ERROR ] || [ $EFI_ERROR ]; then
 	
 fi
 
-cat /proc/mounts|awk '{print $2}'|grep "^$MOUNTPOINT"|grep -v /mnt/live|sort -r|xargs umount &>/dev/null
+cat /proc/mounts|awk '{print $2}'|grep /run/media|sort -r|xargs umount &>/dev/null
 os-prober >"$TMP/os-prober" 2>/dev/null
 
 cat "$TMP/particiones"|while read DEV SIZE FS; do
 	
-	SO="$(grep "^$DEV" "$TMP/os-prober"|cut -d':' -f2|cut -d'(' -f1)"
+	SO="$(grep "^$DEV" "$TMP/os-prober"|cut -d':' -f2)"
 	[ -z "$SO" ] && SO="Ningún SO encontrado"
 	echo "$DEV | $SIZE | $SO"
 	
@@ -138,12 +132,11 @@ kill $(cat "$TMP/pid")
 yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc="$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO"  \
-    --button "gtk-ok:0" \
-    --button "gtk-cancel:1" \
+    --button "OK:0" \
+    --button "Cancelar:1" \
     --text-align "center" \
     --text "\n\n    Selecciona una partición:  \n" \
     --form  --field="":CB "$(cat "$TMP/menu_particiones")" \
@@ -161,11 +154,10 @@ if [ $SPACE -lt 10 ]; then
 		yad --on-top --center \
 		    --width 500 \
 		    --height 190 \
-		    --gtkrc="$THEME" \
 		    --title "$TITULO" \
 		    --window-icon "$LOGO" \
 		    --image "$LOGO_STOP"  \
-		    --button "gtk-ok:0" \
+		    --button "OK:0" \
 		    --text-align "center" \
 		    --text "\n\n\n    La particion ext4 debe ser al menos de 10Gb  \n"
 		exit
@@ -176,13 +168,11 @@ if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 	yad --on-top --center \
 	    --width 500 \
 	    --height 190 \
-	    --gtkrc="$THEME" \
 	    --title "$TITULO" \
 	    --window-icon "$LOGO" \
 	    --image "$LOGO"  \
-	    --button "gtk-ok:0" \
-	    --button "gtk-no:1" \
-	    --button "gtk-cancel:2" \
+	    --button "OK:0" \
+	    --button "Cancelar:1" \
 	    --text-align "center" \
 	    --text "\n\n\n    La partición $DEV no está vacía, \n  ¿Desea formatear la partición? (RECOMENDADO)  \n"
 	
@@ -191,7 +181,6 @@ if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 		0) (yad --on-top --center \
 			--width 500 \
 			--height 190 \
-			--gtkrc="$THEME" \
 			--title "$TITULO" \
 			--window-icon "$LOGO" \
 			--image "$LOGO"  \
@@ -203,7 +192,7 @@ if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 			
 			umount "$DEV"
 			
-			yes | mkfs.ext4 -t ext4 "$DEV"
+			yes | mkfs.ext4 -O 64bit -t ext4 "$DEV"
 			
 			if [ $? -ne 0 ]; then
 				
@@ -212,11 +201,10 @@ if [ "$(ls -a "$MNT"|egrep -xv ".|..|lost\+found")" ]; then
 				yad --on-top --center \
 				    --width 500 \
 				    --height 190 \
-				    --gtkrc="$THEME" \
 				    --title "$TITULO" \
 				    --window-icon "$LOGO" \
 				    --image "$LOGO_ERROR"  \
-				    --button "gtk-ok:0" \
+				    --button "OK:0" \
 				    --text-align "center" \
 				    --text "\n\n\n    Ocurrió un error al formatear la partición, no se puede continuar  \n"
 				exit
@@ -239,11 +227,10 @@ if [ ! "$(mount|grep "^$DEV")" ]; then
 		yad --on-top --center \
 		    --width 500 \
 		    --height 190 \
-		    --gtkrc="$THEME" \
 		    --title "$TITULO" \
 		    --window-icon "$LOGO" \
 		    --image "$LOGO_ERROR"  \
-		    --button "gtk-ok:0" \
+		    --button "OK:0" \
 		    --text-align "center" \
 		    --text "\n\n\n    Ocurrió un error al montar la partición, no se puede continuar  \n"
 		exit
@@ -270,7 +257,6 @@ done|\
 yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc="$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO"  \
@@ -285,14 +271,15 @@ while true; do sleep 1; [ $(cat "$TMP/progress_bar") -ge 100 ] && break; done
 # Fstab nuevo
 rm -rf "$MNT/etc/fstab" 2> /dev/null
 echo "$DEV        /                ext4        defaults         1   1
-proc             /proc            proc        defaults         0   0
-tmpfs            /dev/shm         tmpfs       defaults         0   0" > "$MNT/etc/fstab"
+proc      /proc       proc        defaults   0   0
+sysfs     /sys        sysfs       defaults   0   0
+tmpfs     /dev/shm    tmpfs       defaults,nodev,nosuid,mode=1777  0   0
+devpts    /dev/pts    devpts      gid=5,mode=620   0   0" > "$MNT/etc/fstab"
 
 SWAP_TMP=$(mktemp)
 
 # Scan for SWAP partitions:
-for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo 
-sdp nvme0n1; do
+for drive in sda sdb sdc sdd sde sdf sdg sdh sdi sdj sdk sdl sdm sdn sdo sdp mmcblk0 nvme0n1; do
 	gdisk -l /dev/$drive 2> /dev/null | grep -w 8200 | while read swapsp ; do
 	  echo /dev/$drive$(expr $(echo "$swapsp" | cut -b 1-4)) >> $SWAP_TMP
 	done
@@ -315,10 +302,7 @@ if [ $EFI -eq 0 ]; then
 fi
 
 cp -rf "$LIVECD/boot/vmlinuz" "$MNT/boot/vmlinuz-$(uname -r)"
-cp -rf /etc/timezone "$MNT/etc/"
-cp -rf /etc/hardwareclock "$MNT/etc/"
-cp -rf /etc/localtime "$MNT/etc/"
-cp -rf /etc/localtime-copied-from "$MNT/etc/"
+cp -rf /etc/{timezone,hardwareclock,localtime,locale.conf} "$MNT/etc/"
 cp -rf /etc/rc.d/rc.keymap "$MNT/etc/rc.d/"
 cp -rf /etc/profile.d/lang.sh "$MNT/etc/profile.d/"
 cp -rf /etc/X11/xorg.conf.d/30-keyboard.conf "$MNT/etc/X11/xorg.conf.d/"
@@ -327,17 +311,20 @@ if [ -f /etc/adjtime ]; then
 cp -rf /etc/adjtime "$MNT/etc/"
 fi
 
+chmod +x "$MNT/etc/xdg/autostart/Kernel_advisor.desktop"
+chmod +x "$MNT/etc/xdg/autostart/WifislaxUpdaterGUI.desktop"
+chmod +x "$MNT/etc/rc.d/rc.WifislaxUpdaterGUI"
+
 tune2fs -L "$(cat $LIVEOS|tr ' ' '-')" "$DEV"
 kill $(cat "$TMP/pid")
 
 yad --on-top --center \
     --width 500 \
     --height 190 \
-    --gtkrc="$THEME" \
     --title "$TITULO" \
     --window-icon "$LOGO" \
     --image "$LOGO_NEXT"  \
-    --button "gtk-ok:0" \
+    --button "OK:0" \
     --text-align "center" \
     --text "\n\n\n    La instalación de Wifislax64 ha completado,  \n    se procederá a instalar el GRUB  \n"
 
